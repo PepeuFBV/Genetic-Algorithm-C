@@ -4,21 +4,23 @@
 #include <stdlib.h>
 #include <time.h>
 
-float function(int x, int y) {
-    return sqrt(pow(x, 3) + 2 * pow(y, 4));
+int function2(int x, int y) {
+    // return sqrt(pow(x, 3) + (2 * pow(y, 4)));
+    return x * x;
 }
 
 typedef struct {
     int x;
     int y;
-    float functionResult;
-    float fitness;  // chance of being selected as a parent
+    int functionResult;
+    double fitness;  // chance of being selected as a parent
 } Individual;
 
-void calculateFunctionResults(Individual* population, int populationSize) {
+Individual* calculateFunctionResults(Individual* population, int populationSize) {
     for (int i = 0; i < populationSize; i++) {
-        population[i].functionResult = function(population[i].x, population[i].y);
+        population[i].functionResult = function2(population[i].x, population[i].y);
     }
+    return population;
 }
 
 Individual* generateInitialPopulation(int populationSize) {
@@ -30,24 +32,30 @@ Individual* generateInitialPopulation(int populationSize) {
 
     srand(time(NULL));  // Seed the random number generator
     for (int i = 0; i < populationSize; i++) {
-        population[i].x = rand() % 7;  // random number between 0 and 7
-        population[i].y = rand() % 7;  // random number between 0 and 7
+        population[i].x = rand() % 7 + 1;  // random number between 1 and 7
+        population[i].y = rand() % 7 + 1;  // random number between 1 and 7
     }
 
     return population;
 }
 
-void fitness(Individual* individuals, int populationSize) {
-    calculateFunctionResults(individuals, populationSize);
+Individual* fitness(Individual* individuals, int populationSize) {
+    individuals = calculateFunctionResults(individuals, populationSize);
 
     for (int i = 0; i < populationSize; i++) {
-        float current = 1 / individuals[i].functionResult;
-        float sumResults = 0;
+        double current = 1 / individuals[i].functionResult;
+        double sumResults = 0;
         for (int j = 0; j < populationSize; j++) {
             sumResults += 1 / individuals[j].functionResult;
         }
-        individuals[i].fitness = current / sumResults;
+        individuals[i].fitness = current / sumResults;  // this isn't working ?
+        printf("current: %lf", current);
+        printf("sum: %lf", sumResults);
+        printf("fitness: %d", individuals[i].fitness);
+        printf("\n");
     }
+
+    return individuals;
 }
 
 void chooseParents(Individual* population, int populationSize, int* parent1, int* parent2) {
@@ -68,15 +76,13 @@ void chooseParents(Individual* population, int populationSize, int* parent1, int
 }
 
 Individual* mutate(Individual* population, int index) {
-    int mutationPoint = rand() % 2;  // chooses x or y to mutate
     int mutationPlace = rand() % 3;  // chooses the bit to mutate (0 to 2)
-    if (mutationPoint == 0) {        // x
-        population[index].x ^= 1 << mutationPlace;
-        population[index].x = population[index].x % 7;  // ensure x is within [0, 7]
-    } else {                                            // y
-        population[index].y ^= 1 << mutationPlace;
-        population[index].y = population[index].y % 7;  // ensure y is within [0, 7]
-    }
+
+    population[index].x ^= 1 << mutationPlace;
+    population[index].x = population[index].x % 7;  // ensure x is within [0, 7]
+
+    population[index].y ^= 1 << mutationPlace;
+    population[index].y = population[index].y % 7;  // ensure y is within [0, 7]
 
     return population;
 }
@@ -85,18 +91,17 @@ Individual* crossover(Individual* population, int parent1, int parent2, Individu
     srand(time(NULL));
 
     for (int i = 0; i < numChildren; i++) {
-        int crossoverPoint = rand() % 8;  // from number 0 to 7
+        int crossoverPoint = rand() % 2;  // choose a random crossover point (0 or 1
 
         // create masks for the crossover point
-        int mask1 = (1 << crossoverPoint) - 1;
-        int mask2 = ~mask1;
+        int mask1 = (1 << crossoverPoint) - 1;  // 00000011 for crossoverPoint = 2
+        int mask2 = ~mask1;                     // 11111100 for crossoverPoint = 2
 
-        // combine bits from both parents
+        // combine bits from both parents, half from each
         int* parent1x = (int*)&population[parent1].x;
         int* parent2x = (int*)&population[parent2].x;
         int* parent1y = (int*)&population[parent1].y;
         int* parent2y = (int*)&population[parent2].y;
-
         int* childx = (int*)&children[i].x;
         int* childy = (int*)&children[i].y;
 
@@ -109,9 +114,10 @@ Individual* crossover(Individual* population, int parent1, int parent2, Individu
 
 void train(int generations, int populationSize) {
     Individual* population = generateInitialPopulation(populationSize);
-    fitness(population, populationSize);  // calculate fitness of the starting population
 
     for (int i = 0; i < generations; i++) {
+        population = fitness(population, populationSize);  // calculate fitness of the starting population
+
         int parent1, parent2;  // indexes of the parents
         chooseParents(population, populationSize, &parent1, &parent2);
 
@@ -123,25 +129,26 @@ void train(int generations, int populationSize) {
 
         children = crossover(population, parent1, parent2, children, populationSize);  // create children from parents
 
-        // choose a random children to mutate, two children choosen with only x or y mutated
-        int childToMutate = rand() % populationSize;
-        mutate(children, childToMutate);
-        childToMutate = rand() % populationSize;
-        mutate(children, childToMutate);
+        // 10% chance of mutation for each child
+        // for (int i = 0; i < populationSize; i++) {
+        //     if (rand() % 10 == 0) {
+        //         children = mutate(children, i);
+        //     }
+        // }
 
         // replace the population with the children
         for (int i = 0; i < populationSize; i++) {
             population[i] = children[i];
         }
 
-        fitness(population, populationSize);  // calculate fitness of the current population
+        population = fitness(population, populationSize);  // calculate fitness of the current population
 
         printf("Generation %d\n", i);
         for (int i = 0; i < populationSize; i++) {
-            printf("Children %d: x = %d, y = %d", i, children[i].x, children[i].y);
+            printf("Children %d: x = %d, y = %d, fitness = %lf, function = %lf", i, children[i].x, children[i].y, children[i].fitness, children[i].functionResult);
             printf(" | ");
         }
-        printf("\n");
+        printf("\n\n");
 
         free(children);
     }
