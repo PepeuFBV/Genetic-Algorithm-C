@@ -54,6 +54,12 @@ typedef struct {
 
 ## Usage
 
+To clone the project, run the following command:
+
+```bash
+git clone https://github.com/PepeuFBV/Genetic-Algorithm
+```
+
 To compile the program, run the following command:
 
 ```bash
