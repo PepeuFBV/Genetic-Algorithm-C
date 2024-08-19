@@ -4,68 +4,97 @@
 #include <stdlib.h>
 #include <time.h>
 
-int function2(int x, int y) {
-    // return sqrt(pow(x, 3) + (2 * pow(y, 4)));
-    return x * x;
+#define POPULATION_SIZE 4  // Number of individuals in the population per generation
+#define MIN_VALUE 0.1f
+#define MAX_VALUE 7.0f
+#define MUTATION_RATE 0.1f    // 10% chance of mutation
+#define MUTATION_AMOUNT 1.0f  // Maximum adjustment amount for mutation
+
+float func(float x, float y) {
+    float pow1 = pow(x, 3);
+    float pow2 = pow(y, 4);
+    float sum = pow1 + (2 * pow2);
+    return sqrt(sum);
+}
+
+float getRandomFloat(float min, float max) {
+    return min + (float)rand() / (float)(RAND_MAX / (max - min));
+}
+
+float clamp(float value, float min, float max) {
+    if (value < min) return min;
+    if (value > max) return max;
+    return value;
 }
 
 typedef struct {
-    int x;
-    int y;
-    int functionResult;
-    double fitness;  // chance of being selected as a parent
+    float x;
+    float y;
+    float functionResult;
+    float fitness;  // chance of being selected as a parent
 } Individual;
 
-Individual* calculateFunctionResults(Individual* population, int populationSize) {
-    for (int i = 0; i < populationSize; i++) {
-        population[i].functionResult = function2(population[i].x, population[i].y);
+/*
+Apply the function to each individual in the population
+*/
+void calculateFunctionResults(Individual* population) {
+    for (int i = 0; i < POPULATION_SIZE; i++) {
+        population[i].functionResult = func(population[i].x, population[i].y);
     }
-    return population;
 }
 
-Individual* generateInitialPopulation(int populationSize) {
-    Individual* population = (Individual*)malloc(populationSize * sizeof(Individual));
+/*
+Generate the initial population of individuals
+*/
+Individual* generateInitialPopulation() {
+    Individual* population = (Individual*)malloc(POPULATION_SIZE * sizeof(Individual));
     if (population == NULL) {
         printf("Memory allocation for initial population failed\n");
         return NULL;
     }
 
-    srand(time(NULL));  // Seed the random number generator
-    for (int i = 0; i < populationSize; i++) {
-        population[i].x = rand() % 7 + 1;  // random number between 1 and 7
-        population[i].y = rand() % 7 + 1;  // random number between 1 and 7
+    for (int i = 0; i < POPULATION_SIZE; i++) {
+        population[i].x = getRandomFloat(MIN_VALUE, MAX_VALUE);
+        population[i].y = getRandomFloat(MIN_VALUE, MAX_VALUE);
+        population[i].functionResult = 0.0f;
+        population[i].fitness = 0.0f;
     }
 
     return population;
 }
 
-Individual* fitness(Individual* individuals, int populationSize) {
-    individuals = calculateFunctionResults(individuals, populationSize);
+/*
+Calculate the fitness of each individual in the population
+*/
+void fitness(Individual* individuals) {
+    calculateFunctionResults(individuals);
 
-    for (int i = 0; i < populationSize; i++) {
-        double current = 1 / individuals[i].functionResult;
-        double sumResults = 0;
-        for (int j = 0; j < populationSize; j++) {
-            sumResults += 1 / individuals[j].functionResult;
+    float sumResults = 0;
+    for (int i = 0; i < POPULATION_SIZE; i++) {
+        if (individuals[i].functionResult > 0.0f) {
+            sumResults += 1.0f / individuals[i].functionResult;
+        } else {
+            individuals[i].functionResult = 1.0e-6f;  // Avoid division by zero
+            sumResults += 1.0f / individuals[i].functionResult;
         }
-        individuals[i].fitness = current / sumResults;  // this isn't working ?
-        printf("current: %lf", current);
-        printf("sum: %lf", sumResults);
-        printf("fitness: %d", individuals[i].fitness);
-        printf("\n");
     }
 
-    return individuals;
+    for (int i = 0; i < POPULATION_SIZE; i++) {
+        individuals[i].fitness = (1.0f / individuals[i].functionResult) / sumResults;
+    }
 }
 
-void chooseParents(Individual* population, int populationSize, int* parent1, int* parent2) {
+/*
+Choose the two parents with the highest fitness in the population group
+*/
+void chooseParents(Individual* population, int* parent1, int* parent2) {
     *parent1 = 0;
     *parent2 = 1;
     if (population[1].fitness > population[0].fitness) {
         *parent1 = 1;
         *parent2 = 0;
     }
-    for (int i = 2; i < populationSize; i++) {
+    for (int i = 2; i < POPULATION_SIZE; i++) {
         if (population[i].fitness > population[*parent1].fitness) {
             *parent2 = *parent1;
             *parent1 = i;
@@ -75,81 +104,104 @@ void chooseParents(Individual* population, int populationSize, int* parent1, int
     }
 }
 
-Individual* mutate(Individual* population, int index) {
-    int mutationPlace = rand() % 3;  // chooses the bit to mutate (0 to 2)
-
-    population[index].x ^= 1 << mutationPlace;
-    population[index].x = population[index].x % 7;  // ensure x is within [0, 7]
-
-    population[index].y ^= 1 << mutationPlace;
-    population[index].y = population[index].y % 7;  // ensure y is within [0, 7]
-
-    return population;
-}
-
-Individual* crossover(Individual* population, int parent1, int parent2, Individual* children, int numChildren) {
-    srand(time(NULL));
-
-    for (int i = 0; i < numChildren; i++) {
-        int crossoverPoint = rand() % 2;  // choose a random crossover point (0 or 1
-
-        // create masks for the crossover point
-        int mask1 = (1 << crossoverPoint) - 1;  // 00000011 for crossoverPoint = 2
-        int mask2 = ~mask1;                     // 11111100 for crossoverPoint = 2
-
-        // combine bits from both parents, half from each
-        int* parent1x = (int*)&population[parent1].x;
-        int* parent2x = (int*)&population[parent2].x;
-        int* parent1y = (int*)&population[parent1].y;
-        int* parent2y = (int*)&population[parent2].y;
-        int* childx = (int*)&children[i].x;
-        int* childy = (int*)&children[i].y;
-
-        *childx = (*parent1x & mask1) | (*parent2x & mask2);
-        *childy = (*parent1y & mask1) | (*parent2y & mask2);
+/*
+Mutate a random bit in the individual at the given index TODO: fix this function
+*/
+void mutate(Individual* population, int index) {
+    // Decide whether to mutate x and/or y
+    if ((float)rand() / RAND_MAX < MUTATION_RATE) {
+        // Mutate x
+        float mutationX = (float)rand() / RAND_MAX * 2 * MUTATION_AMOUNT - MUTATION_AMOUNT;  // Random value between -MUTATION_AMOUNT and MUTATION_AMOUNT
+        population[index].x += mutationX;
+        population[index].x = clamp(population[index].x, MIN_VALUE, MAX_VALUE);  // Ensure x is within bounds
     }
 
-    return children;
+    if ((float)rand() / RAND_MAX < MUTATION_RATE) {
+        // Mutate y
+        float mutationY = (float)rand() / RAND_MAX * 2 * MUTATION_AMOUNT - MUTATION_AMOUNT;  // Random value between -MUTATION_AMOUNT and MUTATION_AMOUNT
+        population[index].y += mutationY;
+        population[index].y = clamp(population[index].y, MIN_VALUE, MAX_VALUE);  // Ensure y is within bounds
+    }
 }
 
-void train(int generations, int populationSize) {
-    Individual* population = generateInitialPopulation(populationSize);
+/*
+Crossover two parents to create children to be the new population
+*/
+void crossover(Individual* population, int parent1, int parent2, Individual* children) {
+    for (int i = 0; i < POPULATION_SIZE; i++) {
+        float alpha = (float)rand() / RAND_MAX;  // Random value between 0 and 1
 
-    for (int i = 0; i < generations; i++) {
-        population = fitness(population, populationSize);  // calculate fitness of the starting population
+        // Perform single-point crossover with blending
+        children[i].x = alpha * population[parent1].x + (1 - alpha) * population[parent2].x;
+        children[i].y = alpha * population[parent1].y + (1 - alpha) * population[parent2].y;
 
-        int parent1, parent2;  // indexes of the parents
-        chooseParents(population, populationSize, &parent1, &parent2);
+        // Clamp the values to be within the range [MIN_VALUE, MAX_VALUE]
+        children[i].x = clamp(children[i].x, MIN_VALUE, MAX_VALUE);
+        children[i].y = clamp(children[i].y, MIN_VALUE, MAX_VALUE);
+    }
+}
 
-        Individual* children = (Individual*)malloc(populationSize * sizeof(Individual));  // new children
+/*
+Main training function
+*/
+void train(int generations) {
+    srand(time(NULL));
+
+    Individual* population = generateInitialPopulation();
+    fitness(population);  // calculate fitness of the starting population
+
+    printf("Initial population\n");
+    for (int i = 0; i < POPULATION_SIZE; i++) {
+        printf("Individual %d: x = %.2f, y = %.2f, fitness = %f, function = %f\n",
+               i, population[i].x, population[i].y, population[i].fitness, population[i].functionResult);
+    }
+    printf("\n");
+
+    for (int i = 1; i < generations; i++) {
+        int parent1, parent2;                           // indexes of the parents
+        chooseParents(population, &parent1, &parent2);  // choose the parents with the highest fitness
+
+        Individual* children = (Individual*)malloc(POPULATION_SIZE * sizeof(Individual));  // new children
         if (children == NULL) {
             printf("Memory allocation for children failed\n");
+            free(population);
             return;
         }
 
-        children = crossover(population, parent1, parent2, children, populationSize);  // create children from parents
+        printf("Parents chosen were:\n");
+        printf("Parent 1: x = %.2f, y = %.2f, fitness = %f, function = %f\n",
+               population[parent1].x, population[parent1].y, population[parent1].fitness, population[parent1].functionResult);
+        printf("Parent 2: x = %.2f, y = %.2f, fitness = %f, function = %f\n", population[parent2].x,
+               population[parent2].y, population[parent2].fitness, population[parent2].functionResult);
+
+        crossover(population, parent1, parent2, children);  // create children from parents
 
         // 10% chance of mutation for each child
-        // for (int i = 0; i < populationSize; i++) {
-        //     if (rand() % 10 == 0) {
-        //         children = mutate(children, i);
-        //     }
-        // }
+        for (int i = 0; i < POPULATION_SIZE; i++) {
+            if (rand() % 10 == 0) {
+                printf("Mutating child %d\n", i);
+                mutate(children, i);
+                printf("Child became %d: x = %.2f, y = %.2f\n", i, children[i].x, children[i].y);
+            }
+        }
 
         // replace the population with the children
-        for (int i = 0; i < populationSize; i++) {
+        for (int i = 0; i < POPULATION_SIZE; i++) {
             population[i] = children[i];
         }
 
-        population = fitness(population, populationSize);  // calculate fitness of the current population
+        // calculate fitness of the current population
+        fitness(population);
 
         printf("Generation %d\n", i);
-        for (int i = 0; i < populationSize; i++) {
-            printf("Children %d: x = %d, y = %d, fitness = %lf, function = %lf", i, children[i].x, children[i].y, children[i].fitness, children[i].functionResult);
-            printf(" | ");
+        for (int i = 0; i < POPULATION_SIZE; i++) {
+            printf("Individual %d: x = %.2f, y = %.2f, fitness = %f, function = %f\n",
+                   i, population[i].x, population[i].y, population[i].fitness, population[i].functionResult);
         }
-        printf("\n\n");
+        printf("\n");
 
         free(children);
     }
+
+    free(population);
 }
