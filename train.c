@@ -7,7 +7,7 @@
 #define POPULATION_SIZE 4  // Number of individuals in the population per generation
 #define MIN_VALUE 0.1f
 #define MAX_VALUE 7.0f
-#define MUTATION_RATE 0.1f    // 10% chance of mutation
+#define MUTATION_RATE 0.2f    // 20% chance of mutation
 #define MUTATION_AMOUNT 1.0f  // Maximum adjustment amount for mutation
 
 float func(float x, float y) {
@@ -110,17 +110,25 @@ Mutate a random bit in the individual at the given index TODO: fix this function
 void mutate(Individual* population, int index) {
     // Decide whether to mutate x and/or y
     if ((float)rand() / RAND_MAX < MUTATION_RATE) {
+        float oldX = population[index].x;
+
         // Mutate x
         float mutationX = (float)rand() / RAND_MAX * 2 * MUTATION_AMOUNT - MUTATION_AMOUNT;  // Random value between -MUTATION_AMOUNT and MUTATION_AMOUNT
         population[index].x += mutationX;
         population[index].x = clamp(population[index].x, MIN_VALUE, MAX_VALUE);  // Ensure x is within bounds
+
+        printf("Mutated x from %.2f to %.2f\n", oldX, population[index].x);
     }
 
     if ((float)rand() / RAND_MAX < MUTATION_RATE) {
+        float oldY = population[index].y;
+
         // Mutate y
         float mutationY = (float)rand() / RAND_MAX * 2 * MUTATION_AMOUNT - MUTATION_AMOUNT;  // Random value between -MUTATION_AMOUNT and MUTATION_AMOUNT
         population[index].y += mutationY;
         population[index].y = clamp(population[index].y, MIN_VALUE, MAX_VALUE);  // Ensure y is within bounds
+
+        printf("Mutated y from %.2f to %.2f\n", oldY, population[index].y);
     }
 }
 
@@ -178,7 +186,7 @@ void train(int generations) {
 
         // 10% chance of mutation for each child
         for (int i = 0; i < POPULATION_SIZE; i++) {
-            if (rand() % 10 == 0) {
+            if (rand() % (int)(MUTATION_RATE * 10) == 0) {
                 printf("Mutating child %d\n", i);
                 mutate(children, i);
                 printf("Child became %d: x = %.2f, y = %.2f\n", i, children[i].x, children[i].y);
