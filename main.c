@@ -3,5 +3,5 @@
 #include "train.c"
 
 void main() {
-    train(100);
+    train(1000);
 }
