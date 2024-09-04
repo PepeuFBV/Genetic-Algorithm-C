@@ -2,6 +2,35 @@
 
 This project implements a simple genetic algorithm in C to optimize a mathematical function. The algorithm evolves a population of candidate solutions over multiple generations to find the best solution according to a given fitness function.
 
+## Usage
+
+To clone the project, run the following command:
+
+```bash
+git clone https://github.com/PepeuFBV/Genetic-Algorithm
+```
+
+Then navigate to the project directory:
+
+```bash
+cd Genetic-Algorithm
+```
+
+To compile the program, run the following command:
+
+```bash
+gcc train.c -c
+gcc main.c -o main
+```
+
+To run the program, execute the following command:
+
+```bash
+./main
+```
+
+## Algorithm
+
 The genetic algorithm is as follows:
 
 1. **Initialization**: Create a population of candidate solutions.
@@ -51,27 +80,6 @@ typedef struct {
 - **Solution Space**: The range of values for the candidate solutions. Its set to **[0, 7]**.
 
 - **Generations**: The number of generations to evolve the population. Its set to **100**.
-
-## Usage
-
-To clone the project, run the following command:
-
-```bash
-git clone https://github.com/PepeuFBV/Genetic-Algorithm
-```
-
-To compile the program, run the following command:
-
-```bash
-gcc train.c -c
-gcc main.c -o main
-```
-
-To run the program, execute the following command:
-
-```bash
-./main
-```
 
 ## License
 
